@@ -12,10 +12,14 @@
             background: #000; display: flex; align-items: center; justify-content: center;
             z-index: 999; transition: opacity 1s; color: #00f2ff; flex-direction: column;
         }
+        #error-msg { color: #ff0055; margin-top: 10px; font-size: 0.8em; display: none; }
     </style>
 </head>
 <body>
-    <div id="loading"><h1>⚡ LOADING 6-FACE WORLD...</h1></div>
+    <div id="loading">
+        <h1>⚡ LOADING WORLD...</h1>
+        <div id="error-msg">Không tìm thấy ảnh .png! Hãy kiểm tra tên file trên GitHub.</div>
+    </div>
     <div id="joystick-zone"></div>
 
     <script type="importmap">
@@ -25,59 +29,62 @@
 
     <script type="module">
         import * as THREE from 'three';
-        // Import công cụ GroundedSkybox giúp "hạ cánh" ảnh nền xuống mặt đất
+        // Import GroundedSkybox từ CDN
         import { GroundedSkybox } from 'https://unpkg.com/three@0.160.0/examples/jsm/objects/GroundedSkybox.js';
 
         // === 1. SETUP ===
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x0a0a1f);
         
-        // Sương mù nhẹ để làm mềm đường chân trời
+        // Sương mù: Bắt đầu mờ ở 20m, che hoàn toàn ở 100m để giấu biên giới của sàn
         scene.fog = new THREE.Fog(0x0a0a1f, 20, 100); 
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(0, 1.6, 0);
+        camera.position.set(0, 1.6, 0); // Tầm mắt người
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.shadowMap.enabled = true; 
         document.body.appendChild(renderer.domElement);
 
-        // === 2. LOAD BỘ 6 ẢNH (CUBEMAP) ===
+        // === 2. LOAD BỘ 6 ẢNH PNG (CUBEMAP) ===
         const loader = new THREE.CubeTextureLoader();
-        // Nạp đúng thứ tự: Phải, Trái, Trên, Dưới, Trước, Sau
-        // Hãy đảm bảo bạn đã upload các file này lên GitHub
+        
+        // Lưu ý: Đảm bảo bạn đã upload 6 file .png lên GitHub cùng thư mục
         const texture = loader.load([
-            './px.jpg', './nx.jpg',
-            './py.jpg', './ny.jpg',
-            './pz.jpg', './nz.jpg'
+            './px.png', './nx.png',
+            './py.png', './ny.png',
+            './pz.png', './nz.png'
         ], () => {
-            // Khi tải xong 6 ảnh
-            console.log("Đã tải xong 6 mặt thế giới!");
-            document.getElementById('loading').style.opacity = '0';
-            setTimeout(() => document.getElementById('loading').style.display = 'none', 1000);
+            // Tải thành công
+            console.log("Texture loaded!");
+            const loadingEl = document.getElementById('loading');
+            if(loadingEl) {
+                loadingEl.style.opacity = '0';
+                setTimeout(() => loadingEl.style.display = 'none', 1000);
+            }
         }, undefined, (err) => {
-            console.error(err);
-            document.querySelector('#loading h1').innerText = "ERROR: CHECK FILE NAMES";
-            document.querySelector('#loading h1').style.color = "red";
+            // Lỗi tải ảnh
+            console.error("Lỗi tải ảnh:", err);
+            document.querySelector('#loading h1').innerText = "ERROR: FILES NOT FOUND";
+            document.getElementById('error-msg').style.display = 'block';
         });
 
-        // === 3. TẠO GROUNDED SKYBOX (THẾ GIỚI CHẠM ĐẤT) ===
-        // GroundedSkybox(texture, height, radius)
-        // height: độ cao bầu trời (càng cao càng thoáng)
-        // radius: bán kính vùng đất phẳng (càng lớn thì đi càng xa không bị méo)
+        // === 3. TẠO GROUNDED SKYBOX ===
+        // height: 15 (độ cao vòm trời), radius: 70 (bán kính sàn)
+        // Bạn có thể tăng radius lên 100 nếu muốn đi xa hơn
         const skybox = new GroundedSkybox(texture, 15, 70); 
-        skybox.position.y = 0; // Đặt chuẩn ngay chân
+        skybox.position.y = 0; // Đặt sát sàn
         scene.add(skybox);
 
-        // === 4. MẶT SÀN VẬT LÝ (TRONG SUỐT) ===
-        // Sàn này để hứng bóng đổ và va chạm, nhưng mắt sẽ nhìn xuyên qua nó để thấy ảnh nền
+        // === 4. SÀN VẬT LÝ (TRONG SUỐT) ===
+        // Sàn này để hứng bóng đổ đèn Neon lên mặt đường trong ảnh
         const ground = new THREE.Mesh(
             new THREE.PlaneGeometry(100, 100),
             new THREE.MeshStandardMaterial({ 
                 color: 0x000000, 
                 transparent: true, 
-                opacity: 0.1, // Hơi mờ để bắt bóng đổ của đèn
+                opacity: 0.1, // Trong suốt để nhìn thấy ảnh bên dưới
                 roughness: 0.1,
                 metalness: 0.5
             })
@@ -86,7 +93,7 @@
         ground.receiveShadow = true;
         scene.add(ground);
 
-        // Vũng nước phản chiếu (cũng chỉnh trong suốt để hòa trộn)
+        // Vũng nước phản chiếu
         const puddles = [
             { x: 3, z: 2, r: 2 }, { x: -4, z: -3, r: 1.5 },
             { x: 5, z: -5, r: 1.8 }, { x: -6, z: 4, r: 2.2 }
@@ -99,7 +106,7 @@
                     roughness: 0.0, 
                     metalness: 1.0,
                     transparent: true,
-                    opacity: 0.6 
+                    opacity: 0.5 
                 })
             );
             puddle.rotation.x = -Math.PI / 2;
@@ -159,7 +166,7 @@
         window.onkeydown = e => keys[e.key.toLowerCase()] = true;
         window.onkeyup = e => keys[e.key.toLowerCase()] = false;
 
-        // Giới hạn vùng di chuyển trong bán kính 15m để không đi ra khỏi vùng ảnh đẹp
+        // Giới hạn di chuyển để người chơi không đi ra khỏi vùng ảnh sắc nét
         function checkCol(pos) { return (Math.abs(pos.x) > 15 || Math.abs(pos.z) > 15); }
 
         const clock = new THREE.Clock();
