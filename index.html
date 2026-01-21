@@ -136,7 +136,8 @@
         // === SETUP ===
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x0a0a1f);
-        scene.fog = new THREE.Fog(0x0a0a1f, 40, 150);
+        // Tắt fog để thấy rõ thành phố
+        // scene.fog = new THREE.Fog(0x0a0a1f, 40, 150);
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         camera.position.set(0, 1.6, 0);
@@ -208,11 +209,11 @@
         // === GROUND - Sàn lớn tối màu ===
         const groundGeo = new THREE.CircleGeometry(200, 64);
         const groundMat = new THREE.MeshStandardMaterial({ 
-            color: 0x050510,
+            color: 0x0a0a1f, // Màu tối nhẹ hơn
             roughness: 0.8,
             metalness: 0.2,
             transparent: true,
-            opacity: 0.9
+            opacity: 0.7 // Giảm opacity để thấy texture bên dưới
         });
         const ground = new THREE.Mesh(groundGeo, groundMat);
         ground.rotation.x = -Math.PI / 2;
@@ -253,8 +254,8 @@
         });
 
         // === NEON STREET LAMPS ===
-        scene.add(new THREE.AmbientLight(0x404040, 0.4));
-        const hemiLight = new THREE.HemisphereLight(0x00f2ff, 0xff006e, 0.3);
+        scene.add(new THREE.AmbientLight(0x808080, 1.2)); // Tăng ánh sáng môi trường
+        const hemiLight = new THREE.HemisphereLight(0x00f2ff, 0xff006e, 0.8); // Tăng hemisphere
         scene.add(hemiLight);
 
         const lampPos = [
@@ -305,7 +306,7 @@
             scene.add(glow);
             
             // Point light
-            const light = new THREE.PointLight(color, 4, 18);
+            const light = new THREE.PointLight(color, 8, 25); // Tăng cường độ và phạm vi
             light.position.copy(bulb.position);
             light.castShadow = true;
             light.shadow.mapSize.width = 512;
@@ -426,7 +427,7 @@
 
             // Lights animation
             lights.forEach((lightObj, i) => {
-                const pulse = 3.5 + Math.sin(time * 2 + i * 1.2) * 1;
+                const pulse = 7 + Math.sin(time * 2 + i * 1.2) * 2; // Tăng cường độ pulse
                 lightObj.light.intensity = pulse;
                 lightObj.glow.scale.setScalar(1 + Math.sin(time * 3 + i) * 0.25);
             });
