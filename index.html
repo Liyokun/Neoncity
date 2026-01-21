@@ -3,99 +3,454 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Cyberpunk Debug Fixed</title>
+    <title>🌃 Cyberpunk - Grounded Reality</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; color: #00f2ff; font-family: sans-serif; }
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background-color: #000; 
+            touch-action: none; 
+            font-family: 'Courier New', monospace;
+        }
+        #joystick-zone { 
+            position: absolute; 
+            bottom: 50px; 
+            left: 50px; 
+            width: 120px; 
+            height: 120px; 
+            z-index: 100; 
+            opacity: 0.8; 
+        }
         #loading { 
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            background: #000; display: flex; align-items: center; justify-content: center;
-            z-index: 999; flex-direction: column;
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            background: linear-gradient(135deg, #0a0a1f 0%, #1a0a2e 100%);
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            z-index: 999; 
+            transition: opacity 1s; 
+            flex-direction: column;
         }
-        #btn-start { 
-            padding: 20px 40px; background: #00f2ff; color: #000; border: none;
-            font-weight: bold; font-size: 18px; cursor: pointer; border-radius: 5px;
-            margin-top: 20px; box-shadow: 0 0 20px #00f2ff;
+        #loading h1 {
+            color: #00f2ff; 
+            font-size: 2em;
+            text-shadow: 0 0 20px #00f2ff;
+            margin-bottom: 15px;
+            animation: pulse 1.5s infinite;
         }
-        #joystick-zone { position: absolute; bottom: 40px; left: 40px; width: 100px; height: 100px; z-index: 10; }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+        }
+        #loading .status {
+            color: #ff006e;
+            font-size: 1.1em;
+            margin: 5px 0;
+        }
+        .progress-bar {
+            width: 250px;
+            height: 4px;
+            background: rgba(0, 242, 255, 0.2);
+            border-radius: 2px;
+            margin-top: 15px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00f2ff, #ff006e);
+            width: 0%;
+            transition: width 0.3s;
+        }
+        #error-msg { 
+            color: #ff0055; 
+            margin-top: 15px; 
+            font-size: 0.9em; 
+            display: none;
+            text-align: center;
+            max-width: 80%;
+        }
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #00f2ff;
+            background: rgba(10, 10, 31, 0.85);
+            padding: 12px 15px;
+            border-radius: 8px;
+            border: 1px solid #00f2ff;
+            box-shadow: 0 0 20px rgba(0, 242, 255, 0.3);
+            font-size: 13px;
+            z-index: 10;
+            backdrop-filter: blur(10px);
+        }
+        #info kbd {
+            background: #1a1a2e;
+            padding: 2px 6px;
+            border-radius: 3px;
+            border: 1px solid #00f2ff;
+            margin: 0 2px;
+            font-size: 12px;
+        }
     </style>
 </head>
 <body>
-
     <div id="loading">
-        <h1 id="status">⚡ ĐANG KHỞI TẠO HỆ THỐNG...</h1>
-        <button id="btn-start" onclick="document.getElementById('loading').style.display='none'">VÀO KHÔNG GIAN</button>
-        <p style="font-size: 12px; margin-top: 20px; color: #555;">Nếu không thấy ảnh, hãy kiểm tra link GitHub của bạn.</p>
+        <h1>⚡ LOADING NEON CITY ⚡</h1>
+        <div class="status">Initializing cubemap textures...</div>
+        <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
+        <div id="error-msg">
+            ❌ Không tìm thấy file .png!<br>
+            Kiểm tra: px.png, nx.png, py.png, ny.png, pz.png, nz.png<br>
+            Xem Console (F12) để biết chi tiết.
+        </div>
     </div>
-
+    
+    <div id="info">
+        <div style="color: #ff006e; font-weight: bold; margin-bottom: 8px;">🎮 CONTROLS</div>
+        <div><kbd>WASD</kbd> or <kbd>↑←↓→</kbd> Move</div>
+        <div><kbd>Mouse Drag</kbd> Look around</div>
+        <div style="margin-top: 8px; color: #ff006e; font-size: 11px;">📱 Mobile: Touch + Joystick</div>
+    </div>
+    
     <div id="joystick-zone"></div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
+    <script type="importmap">
+        { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+    </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.10.1/nipplejs.min.js"></script>
 
-    <script>
-        // Đợi thư viện nạp xong mới chạy code
-        window.onload = () => {
-            console.log("Hệ thống đã sẵn sàng");
-            initGame();
-        };
+    <script type="module">
+        import * as THREE from 'three';
+        import { GroundedSkybox } from 'https://unpkg.com/three@0.160.0/examples/jsm/objects/GroundedSkybox.js';
 
-        function initGame() {
-            const scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x050510);
-            
-            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 1.6, 5);
+        // === SETUP ===
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0a0a1f);
+        scene.fog = new THREE.Fog(0x0a0a1f, 30, 120);
 
-            const renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            document.body.appendChild(renderer.domElement);
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 1.6, 0);
 
-            // Nạp ảnh bằng CubeTextureLoader cơ bản (không dùng module ngoài)
-            const loader = new THREE.CubeTextureLoader();
-            loader.setCrossOrigin('anonymous');
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
 
-            const texture = loader.load([
-                'https://liyokun.github.io/Neoncity/px.png',
-                'https://liyokun.github.io/Neoncity/nx.png',
-                'https://liyokun.github.io/Neoncity/py.png',
-                'https://liyokun.github.io/Neoncity/ny.png',
-                'https://liyokun.github.io/Neoncity/pz.png',
-                'https://liyokun.github.io/Neoncity/nz.png'
-            ], 
-            () => { 
-                console.log("Đã nạp xong ảnh!"); 
-                scene.background = texture; // Gán ảnh làm nền
+        // === LOAD CUBEMAP (6 FACES) ===
+        const loader = new THREE.CubeTextureLoader();
+        
+        let loadedCount = 0;
+        const totalFaces = 6;
+        const statusEl = document.querySelector('.status');
+        const progressEl = document.getElementById('progress');
+
+        console.log("🔍 Loading cubemap faces...");
+
+        // ✅ BỎ "./" ĐI - CHỈ DÙNG TÊN FILE
+        const texture = loader.load(
+            [
+                'px.png', 'nx.png',  // Right, Left
+                'py.png', 'ny.png',  // Top, Bottom  
+                'pz.png', 'nz.png'   // Front, Back
+            ],
+            // onLoad
+            () => {
+                console.log("✅ All 6 faces loaded successfully!");
+                statusEl.textContent = "Creating grounded skybox...";
+                
+                try {
+                    // Create GroundedSkybox
+                    const skybox = new GroundedSkybox(texture, 15, 80);
+                    skybox.position.y = 0;
+                    scene.add(skybox);
+                    console.log("✅ Skybox added to scene");
+                    
+                    // Hide loading screen
+                    setTimeout(() => {
+                        document.getElementById('loading').style.opacity = '0';
+                        setTimeout(() => {
+                            document.getElementById('loading').style.display = 'none';
+                        }, 1000);
+                    }, 500);
+                } catch (e) {
+                    console.error("❌ Skybox creation failed:", e);
+                    showError("Lỗi tạo skybox: " + e.message);
+                }
             },
-            undefined,
-            (err) => { console.error("Không tìm thấy ảnh trên GitHub"); }
-            );
-
-            // Ánh sáng cơ bản
-            const ambient = new THREE.AmbientLight(0xffffff, 0.5);
-            scene.add(ambient);
-
-            // Mặt sàn tạm thời để bạn thấy mình đang đứng trên gì đó
-            const floor = new THREE.Mesh(
-                new THREE.PlaneGeometry(50, 50),
-                new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 })
-            );
-            floor.rotation.x = -Math.PI / 2;
-            scene.add(floor);
-
-            // Vòng lặp hiển thị
-            function animate() {
-                requestAnimationFrame(animate);
-                renderer.render(scene, camera);
+            // onProgress
+            (xhr) => {
+                loadedCount++;
+                const percent = (loadedCount / totalFaces * 100).toFixed(0);
+                statusEl.textContent = `Loading: ${loadedCount}/6 faces (${percent}%)`;
+                progressEl.style.width = percent + '%';
+                console.log(`⏳ Loaded ${loadedCount}/6 faces`);
+            },
+            // onError
+            (error) => {
+                console.error("❌ Failed to load cubemap:", error);
+                const failedFile = error.target?.src || "unknown";
+                showError(`Không tải được: ${failedFile.split('/').pop()}`);
             }
-            animate();
+        );
 
-            // Xử lý resize
-            window.addEventListener('resize', () => {
-                camera.aspect = window.innerWidth / window.innerHeight;
-                camera.updateProjectionMatrix();
-                renderer.setSize(window.innerWidth, window.innerHeight);
-            });
+        function showError(msg) {
+            statusEl.style.display = 'none';
+            const errorEl = document.getElementById('error-msg');
+            errorEl.innerHTML = `❌ ${msg}<br>Kiểm tra Console (F12) để biết thêm.`;
+            errorEl.style.display = 'block';
+            document.querySelector('#loading h1').textContent = "LOAD ERROR";
         }
+
+        // === GROUND (PHYSICAL FLOOR) ===
+        const ground = new THREE.Mesh(
+            new THREE.PlaneGeometry(120, 120),
+            new THREE.MeshStandardMaterial({ 
+                color: 0x0a0a1f,
+                transparent: true,
+                opacity: 0.3,
+                roughness: 0.2,
+                metalness: 0.7
+            })
+        );
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        // === PUDDLES ===
+        const puddles = [
+            { x: 3, z: 2, r: 2 },
+            { x: -4, z: -3, r: 1.5 },
+            { x: 5, z: -5, r: 1.8 },
+            { x: -6, z: 4, r: 2.2 }
+        ];
+
+        puddles.forEach(p => {
+            const puddle = new THREE.Mesh(
+                new THREE.CircleGeometry(p.r, 32),
+                new THREE.MeshStandardMaterial({ 
+                    color: 0x001133,
+                    roughness: 0.0,
+                    metalness: 1.0,
+                    transparent: true,
+                    opacity: 0.6
+                })
+            );
+            puddle.rotation.x = -Math.PI / 2;
+            puddle.position.set(p.x, 0.01, p.z);
+            puddle.receiveShadow = true;
+            scene.add(puddle);
+        });
+
+        // === LIGHTS ===
+        scene.add(new THREE.AmbientLight(0x404040, 0.4));
+
+        const lampPos = [[-8, -8], [8, -8], [-8, 8], [8, 8]];
+        const lights = [];
+
+        lampPos.forEach((p, i) => {
+            const color = i % 2 === 0 ? 0xff006e : 0x00f2ff;
+            
+            // Pole
+            const pole = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.1, 0.15, 5, 8),
+                new THREE.MeshStandardMaterial({ 
+                    color: 0x222222,
+                    metalness: 0.8,
+                    roughness: 0.2
+                })
+            );
+            pole.position.set(p[0], 2.5, p[1]);
+            pole.castShadow = true;
+            scene.add(pole);
+            
+            // Light
+            const light = new THREE.PointLight(color, 150, 20);
+            light.position.set(p[0], 5, p[1]);
+            light.castShadow = true;
+            light.shadow.mapSize.width = 512;
+            light.shadow.mapSize.height = 512;
+            scene.add(light);
+            lights.push(light);
+            
+            // Bulb
+            const bulb = new THREE.Mesh(
+                new THREE.SphereGeometry(0.3, 16, 16),
+                new THREE.MeshBasicMaterial({ 
+                    color: color,
+                    emissive: color,
+                    emissiveIntensity: 1
+                })
+            );
+            bulb.position.copy(light.position);
+            scene.add(bulb);
+
+            // Glow
+            const glow = new THREE.Mesh(
+                new THREE.SphereGeometry(0.5, 16, 16),
+                new THREE.MeshBasicMaterial({
+                    color: color,
+                    transparent: true,
+                    opacity: 0.3,
+                    side: THREE.BackSide
+                })
+            );
+            glow.position.copy(bulb.position);
+            scene.add(glow);
+        });
+
+        // === RAIN ===
+        const rainGeo = new THREE.BufferGeometry();
+        const rainCount = 3000;
+        const rainPos = new Float32Array(rainCount * 3);
+        const rainVel = [];
+
+        for(let i = 0; i < rainCount; i++) {
+            rainPos[i*3] = (Math.random() - 0.5) * 80;
+            rainPos[i*3+1] = Math.random() * 40;
+            rainPos[i*3+2] = (Math.random() - 0.5) * 80;
+            rainVel.push(0.6 + Math.random() * 0.3);
+        }
+
+        rainGeo.setAttribute('position', new THREE.BufferAttribute(rainPos, 3));
+        const rainSystem = new THREE.Points(
+            rainGeo,
+            new THREE.PointsMaterial({
+                color: 0xaaaaaa,
+                size: 0.15,
+                transparent: true,
+                opacity: 0.5
+            })
+        );
+        scene.add(rainSystem);
+
+        // === CONTROLS ===
+        let move = { f: 0, r: 0 };
+        let look = { x: 0, y: 0 };
+        let interact = false;
+        let start = { x: 0, y: 0, lx: 0, ly: 0 };
+
+        // Joystick
+        const joy = nipplejs.create({ 
+            zone: document.getElementById('joystick-zone'),
+            mode: 'static',
+            position: { left: '60px', bottom: '60px' },
+            color: 'cyan'
+        });
+        joy.on('move', (e, d) => { 
+            move.f = d.vector.y; 
+            move.r = d.vector.x; 
+        });
+        joy.on('end', () => { 
+            move.f = 0; 
+            move.r = 0; 
+        });
+
+        // Mouse/Touch
+        document.addEventListener('pointerdown', e => { 
+            if(e.clientX > window.innerWidth / 3) {
+                interact = true;
+                start = { 
+                    x: e.clientX, 
+                    y: e.clientY, 
+                    lx: look.x, 
+                    ly: look.y 
+                };
+            }
+        });
+        
+        document.addEventListener('pointermove', e => {
+            if(interact) {
+                look.x = start.lx + (start.x - e.clientX) * 0.2;
+                look.y = start.ly + (e.clientY - start.y) * 0.2;
+            }
+        });
+        
+        document.addEventListener('pointerup', () => interact = false);
+
+        // Keyboard
+        const keys = {};
+        window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
+        window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+
+        // Collision boundary
+        function checkCol(pos) {
+            return Math.abs(pos.x) > 18 || Math.abs(pos.z) > 18;
+        }
+
+        // === ANIMATION ===
+        const clock = new THREE.Clock();
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            const dt = clock.getDelta();
+            const time = clock.getElapsedTime();
+
+            // Rain
+            const pos = rainSystem.geometry.attributes.position.array;
+            for(let i = 1; i < pos.length; i += 3) {
+                pos[i] -= rainVel[Math.floor(i/3)];
+                if(pos[i] < 0) pos[i] = 40;
+            }
+            rainSystem.geometry.attributes.position.needsUpdate = true;
+
+            // Lights flicker
+            lights.forEach((light, i) => {
+                light.intensity = 150 + Math.sin(time * 2 + i) * 30;
+            });
+
+            // Camera look
+            look.y = Math.max(-85, Math.min(85, look.y));
+            const phi = THREE.MathUtils.degToRad(90 - look.y);
+            const theta = THREE.MathUtils.degToRad(look.x);
+            const target = new THREE.Vector3()
+                .setFromSphericalCoords(1, phi, theta)
+                .add(camera.position);
+            camera.lookAt(target);
+
+            // Movement
+            let forward = move.f;
+            let right = move.r;
+
+            if(keys['w'] || keys['arrowup']) forward += 1;
+            if(keys['s'] || keys['arrowdown']) forward -= 1;
+            if(keys['a'] || keys['arrowleft']) right -= 1;
+            if(keys['d'] || keys['arrowright']) right += 1;
+
+            if(forward || right) {
+                const dir = new THREE.Vector3();
+                camera.getWorldDirection(dir);
+                dir.y = 0;
+                dir.normalize();
+
+                const side = new THREE.Vector3()
+                    .crossVectors(camera.up, dir)
+                    .normalize();
+
+                const next = camera.position.clone()
+                    .addScaledVector(dir, forward * 5 * dt)
+                    .addScaledVector(side, -right * 5 * dt);
+
+                if(!checkCol(next)) {
+                    camera.position.copy(next);
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        animate();
+
+        // Resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
     </script>
 </body>
 </html>
