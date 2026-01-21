@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>🌃 Cyberpunk - Fixed CORS</title>
+    <title>🌃 Cyberpunk - Clear Night (No Fog/Rain)</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #000; touch-action: none; font-family: monospace; }
         #joystick-zone { position: absolute; bottom: 50px; left: 50px; width: 120px; height: 120px; z-index: 100; opacity: 0.8; }
@@ -15,7 +15,7 @@
     </style>
 </head>
 <body>
-    <div id="loading"><h1>⚡ BYPASSING CORS & LOADING...</h1></div>
+    <div id="loading"><h1>⚡ LOADING CLEAR WORLD...</h1></div>
     <div id="joystick-zone"></div>
 
     <script type="importmap">
@@ -26,7 +26,7 @@
     <script type="module">
         import * as THREE from 'three';
 
-        // TÍCH HỢP TRỰC TIẾP GROUNDED SKYBOX VÀO ĐÂY ĐỂ TRÁNH LỖI CORS
+        // TÍCH HỢP TRỰC TIẾP GROUNDED SKYBOX
         class GroundedSkybox extends THREE.Mesh {
             constructor(texture, height, radius, resolution = 128) {
                 const geometry = new THREE.SphereGeometry(radius, resolution, resolution, 0, Math.PI * 2, 0, Math.PI / 2);
@@ -45,7 +45,10 @@
         // === 1. SETUP ===
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x0a0a1f);
-        scene.fog = new THREE.Fog(0x0a0a1f, 20, 100); 
+        
+        // [THAY ĐỔI 1] TẮT HOÀN TOÀN SƯƠNG MÙ
+        scene.fog = null; 
+        // scene.fog = new THREE.Fog(0x0a0a1f, 20, 100); // Code cũ
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         camera.position.set(0, 1.6, 0);
@@ -58,8 +61,6 @@
         // === 2. LOAD BỘ 6 ẢNH (DÙNG URL TUYỆT ĐỐI) ===
         const loader = new THREE.CubeTextureLoader();
         loader.setCrossOrigin('anonymous');
-        
-        // Thêm chuỗi ngẫu nhiên để tránh trình duyệt lấy ảnh cũ bị lỗi (Cache)
         const v = "?v=" + Math.random();
 
         const texture = loader.load([
@@ -76,7 +77,6 @@
             setTimeout(() => document.getElementById('loading').style.display = 'none', 1000);
         }, undefined, (err) => {
             console.error("Vẫn lỗi ảnh, kiểm tra tên file trên GitHub!");
-            // Nếu lỗi ảnh vẫn cho vào game để xem đèn/mưa
             document.getElementById('loading').style.display = 'none';
         });
 
@@ -93,8 +93,12 @@
         ground.receiveShadow = true;
         scene.add(ground);
 
-        // === 5. ĐÈN NEON ===
-        scene.add(new THREE.AmbientLight(0x404040, 0.5));
+        // === 5. ĐÈN NEON & ÁNH SÁNG ===
+        
+        // [THAY ĐỔI 3] TĂNG ĐỘ SÁNG MÔI TRƯỜNG ĐỂ DỄ NHÌN HƠN
+        // Tăng cường độ từ 0.5 lên 2.0
+        scene.add(new THREE.AmbientLight(0x404040, 2.0));
+
         const lampPos = [[-8, -8], [8, -8], [-8, 8], [8, 8]];
         lampPos.forEach((p, i) => {
             const color = i%2==0 ? 0xff006e : 0x00f2ff;
@@ -110,6 +114,8 @@
             scene.add(bulb);
         });
 
+        // [THAY ĐỔI 2] TẮT MƯA (Đã comment lại toàn bộ phần tạo mưa)
+        /*
         // === 6. MƯA ===
         const rainGeo = new THREE.BufferGeometry();
         const rainCount = 4000;
@@ -118,6 +124,7 @@
         rainGeo.setAttribute('position', new THREE.BufferAttribute(rainPos, 3));
         const rainSystem = new THREE.Points(rainGeo, new THREE.PointsMaterial({color: 0xaaaaaa, size: 0.1, transparent: true, opacity: 0.6}));
         scene.add(rainSystem);
+        */
 
         // === 7. ĐIỀU KHIỂN ===
         let move = { f: 0, r: 0 }, look = { x: 0, y: 0 };
@@ -143,6 +150,8 @@
             requestAnimationFrame(animate);
             const dt = clock.getDelta();
 
+            // [THAY ĐỔI 2] TẮT CHUYỂN ĐỘNG MƯA (Đã comment lại)
+            /*
             // Mưa rơi
             const pos = rainSystem.geometry.attributes.position.array;
             for(let i=1; i<pos.length; i+=3) {
@@ -150,6 +159,7 @@
                 if(pos[i] < 0) pos[i] = 40;
             }
             rainSystem.geometry.attributes.position.needsUpdate = true;
+            */
 
             // Camera Look
             look.y = Math.max(-85, Math.min(85, look.y));
