@@ -3,21 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Neon City – Grounded & Safe</title>
+    <title>Neon City - Final Fix</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #050510; touch-action: none; font-family: monospace; }
+        body { margin: 0; overflow: hidden; background-color: #000; touch-action: none; font-family: monospace; }
         #joystick-zone { position: absolute; bottom: 40px; left: 40px; width: 120px; height: 120px; z-index: 100; opacity: 0.8; }
         #loading { 
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
             background: #000; display: flex; align-items: center; justify-content: center;
-            z-index: 999; color: #00f2ff; flex-direction: column; transition: opacity 0.5s;
+            z-index: 999; color: #00f2ff; flex-direction: column;
         }
     </style>
 </head>
 <body>
     <div id="loading">
-        <h1>⚡ ĐANG TẢI THẾ GIỚI...</h1>
-        <p>Nếu quá 5 giây vẫn đen, hãy kiểm tra tên file ảnh.</p>
+        <h1>⚡ ĐANG TẢI (LOCAL)...</h1>
+        <p>Đang tìm ảnh cùng thư mục...</p>
     </div>
     <div id="joystick-zone"></div>
 
@@ -29,11 +29,10 @@
     <script type="module">
         import * as THREE from 'three';
 
-        // --- 2. THUẬT TOÁN "HẠ CÁNH" (Được nhúng trực tiếp, không tải từ ngoài) ---
-        // Đây là bí mật để đi bộ dưới đường thay vì bay lơ lửng như file tham khảo
+        // --- 1. ĐỊNH NGHĨA GROUNDED SKYBOX (HẠ CÁNH ẢNH) ---
         class GroundedSkybox extends THREE.Mesh {
             constructor(texture, height, radius) {
-                const geometry = new THREE.SphereGeometry(radius, 128, 64, 0, Math.PI*2, 0, Math.PI/2);
+                const geometry = new THREE.SphereGeometry(radius, 128, 64, 0, Math.PI * 2, 0, Math.PI / 2);
                 const pos = geometry.attributes.position;
                 for (let i = 0; i < pos.count; i++) {
                     const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
@@ -42,61 +41,68 @@
                         pos.setXYZ(i, x * factor, height, z * factor);
                     }
                 }
-                // Quan trọng: map texture vào mặt trong
                 const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.BackSide });
                 super(geometry, material);
             }
         }
 
-        // --- 3. SETUP CƠ BẢN ---
+        // --- 2. SETUP SCENE ---
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x111111); // Màu nền mặc định nếu ảnh chưa load
-
+        scene.background = new THREE.Color(0x050510);
+        
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(0, 1.6, 0); // Đứng ở mặt đất
+        camera.position.set(0, 1.6, 0);
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // --- 4. TẢI ẢNH (BẮT CHƯỚC CÁCH CỦA FILE THAM KHẢO) ---
+        // --- 3. TẢI ẢNH (QUAN TRỌNG NHẤT) ---
         const loader = new THREE.CubeTextureLoader();
         
-        // Dùng mảng tên file đơn giản, tương đối
-        const urls = ['px.png', 'nx.png', 'py.png', 'ny.png', 'pz.png', 'nz.png'];
+        // Sử dụng đường dẫn tương đối (Relative Path) vì ảnh nằm cùng chỗ với HTML
+        // Thêm ?v=... để tránh trình duyệt dùng lại ảnh lỗi cũ trong bộ nhớ đệm
+        const v = "?v=" + Math.random(); 
+        const urls = [
+            './px.png' + v, './nx.png' + v,
+            './py.png' + v, './ny.png' + v,
+            './pz.png' + v, './nz.png' + v
+        ];
 
         loader.load(urls, 
-            // A. Khi tải thành công
             (texture) => {
-                console.log("Ảnh đã lên!");
+                console.log("Ảnh nạp thành công! Đang xử lý WebGL...");
+
+                // === FIX LỖI MÀN HÌNH ĐEN/LỖI GPU ===
+                // Tắt tạo Mipmap để tránh lỗi nếu kích thước ảnh không chuẩn (VD: 1024x1024)
+                texture.generateMipmaps = false; 
+                texture.minFilter = THREE.LinearFilter;
+                texture.magFilter = THREE.LinearFilter;
+                texture.needsUpdate = true;
+
+                // Tạo không gian
                 const skybox = new GroundedSkybox(texture, 15, 100);
                 skybox.position.y = 0;
                 scene.add(skybox);
                 
                 // Tắt loading
-                const el = document.getElementById('loading');
-                el.style.opacity = '0';
-                setTimeout(() => el.style.display = 'none', 500);
+                document.getElementById('loading').style.display = 'none';
             },
-            // B. Khi đang tải
-            undefined,
-            // C. Khi thất bại (QUAN TRỌNG: Xử lý màn hình đen)
+            undefined, // onProgress
             (err) => {
-                console.error("Lỗi ảnh:", err);
-                document.querySelector('#loading h1').innerText = "KHÔNG TÌM THẤY ẢNH!";
-                document.querySelector('#loading p').innerText = "Đang chạy chế độ thay thế (Lưới xanh)...";
+                console.error("Lỗi nạp ảnh:", err);
+                // Nếu lỗi, hiện thông báo rõ ràng lên màn hình
+                document.querySelector('#loading h1').innerText = "LỖI KHÔNG TÌM THẤY ẢNH";
+                document.querySelector('#loading p').innerText = "Hãy kiểm tra lại tên file px.png, nx.png... (Viết thường)";
                 
-                // Tạo không gian giả lập để không bị đen thui
-                const grid = new THREE.GridHelper(100, 50, 0x00f2ff, 0x222222);
+                // Vẫn cho vào game (hiện lưới) để test
+                const grid = new THREE.GridHelper(100, 50, 0xff0000, 0x444444);
                 scene.add(grid);
-                scene.background = new THREE.Color(0x050520);
-                
-                setTimeout(() => document.getElementById('loading').style.display = 'none', 1000);
+                setTimeout(() => document.getElementById('loading').style.display = 'none', 3000);
             }
         );
 
-        // --- 5. SÀN TRONG SUỐT & ĐÈN ---
-        // Để hứng bóng đổ (tạo cảm giác chân thực hơn file tham khảo)
+        // --- 4. SÀN GIẢ & ĐÈN ---
         const ground = new THREE.Mesh(
             new THREE.PlaneGeometry(100, 100),
             new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.2 })
@@ -104,21 +110,18 @@
         ground.rotation.x = -Math.PI / 2;
         scene.add(ground);
 
-        scene.add(new THREE.AmbientLight(0xffffff, 2.0)); // Tăng sáng để thấy rõ
+        scene.add(new THREE.AmbientLight(0xffffff, 2.0));
 
-        // --- 6. ĐIỀU KHIỂN (COPY TỪ FILE BẠN ĐỂ CẢM GIÁC MƯỢT) ---
+        // --- 5. ĐIỀU KHIỂN (JOYSTICK) ---
         let move = { f: 0, r: 0 }, look = { lon: -90, lat: 0 };
         let drag = false, sx, sy, slon, slat;
 
-        const joy = nipplejs.create({
-            zone: document.getElementById('joystick-zone'),
-            mode: 'static', position: { left: '60px', bottom: '60px' }, color: 'cyan'
-        });
+        const joy = nipplejs.create({ zone: document.getElementById('joystick-zone'), mode: 'static', position: { left: '60px', bottom: '60px' }, color: 'cyan' });
         joy.on('move', (e, d) => { move.f = d.vector.y; move.r = d.vector.x; });
         joy.on('end', () => move = { f: 0, r: 0 });
 
         document.addEventListener('pointerdown', e => {
-            if (e.clientX > window.innerWidth / 2) { // Chỉ xoay khi vuốt bên phải
+            if (e.clientX > window.innerWidth / 2) { 
                 drag = true; sx = e.clientX; sy = e.clientY;
                 slon = look.lon; slat = look.lat;
             }
@@ -130,27 +133,24 @@
         });
         document.addEventListener('pointerup', () => drag = false);
 
-        // --- 7. VÒNG LẶP ---
+        // --- 6. ANIMATION ---
         const clock = new THREE.Clock();
         function animate() {
             requestAnimationFrame(animate);
             const dt = clock.getDelta();
 
-            // Xử lý Camera Look
             look.lat = Math.max(-85, Math.min(85, look.lat));
             const phi = THREE.MathUtils.degToRad(90 - look.lat);
             const theta = THREE.MathUtils.degToRad(look.lon);
             const target = new THREE.Vector3().setFromSphericalCoords(1, phi, theta).add(camera.position);
             camera.lookAt(target);
 
-            // Xử lý Di chuyển
             if (move.f || move.r) {
                 const dir = new THREE.Vector3(); camera.getWorldDirection(dir); dir.y = 0; dir.normalize();
                 const side = new THREE.Vector3().crossVectors(camera.up, dir);
-                camera.position.addScaledVector(dir, move.f * 5 * dt);
-                camera.position.addScaledVector(side, -move.r * 5 * dt);
+                camera.position.addScaledVector(dir, move.f * 10 * dt);
+                camera.position.addScaledVector(side, -move.r * 10 * dt);
             }
-
             renderer.render(scene, camera);
         }
         animate();
