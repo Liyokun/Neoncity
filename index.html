@@ -1,155 +1,486 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Neon City – Stable Core</title>
-<style>
-    body { margin:0; overflow:hidden; background:#000; touch-action:none; font-family: monospace; }
-    #joystick-zone { position:absolute; bottom:40px; left:40px; width:120px; height:120px; z-index: 10; opacity: 0.8; }
-    #loading { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; color: cyan; display: flex; align-items: center; justify-content: center; z-index: 999; flex-direction: column; transition: opacity 0.5s; }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>🌃 Neon City - Grounded Hemisphere</title>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background: #000; 
+            touch-action: none; 
+            font-family: 'Courier New', monospace;
+        }
+        #joystick-zone { 
+            position: absolute; 
+            bottom: 40px; 
+            left: 40px; 
+            width: 120px; 
+            height: 120px; 
+            opacity: 0.8; 
+            z-index: 10; 
+        }
+        #loading { 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            background: linear-gradient(135deg, #0a0a1f 0%, #1a0a2e 100%);
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            z-index: 999; 
+            transition: opacity 1s; 
+            flex-direction: column;
+        }
+        #loading h1 {
+            color: #00f2ff; 
+            font-size: 2.5em;
+            text-shadow: 0 0 30px #00f2ff;
+            margin-bottom: 20px;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+        }
+        #loading .status {
+            color: #ff006e;
+            font-size: 1.2em;
+        }
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #00f2ff;
+            background: rgba(10, 10, 31, 0.9);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #00f2ff;
+            box-shadow: 0 0 20px rgba(0, 242, 255, 0.4);
+            font-size: 14px;
+            z-index: 10;
+            backdrop-filter: blur(10px);
+        }
+        #info kbd {
+            background: #1a1a2e;
+            padding: 3px 7px;
+            border-radius: 3px;
+            border: 1px solid #00f2ff;
+            margin: 0 3px;
+        }
+        #info .title {
+            color: #ff006e;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        #debug {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: #00ff00;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            font-family: monospace;
+            display: none;
+        }
+    </style>
 </head>
 <body>
-
-<div id="loading">
-    <h1>⚡ ĐANG TẢI DỮ LIỆU...</h1>
-    <p>Sử dụng cơ chế Scene Background (Siêu ổn định)</p>
-</div>
-
-<div id="joystick-zone"></div>
-
-<script type="importmap">
-{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
-</script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.10.1/nipplejs.min.js"></script>
-
-<script type="module">
-import * as THREE from 'three';
-
-/* === 1. KHỞI TẠO CƠ BẢN (Chuẩn Lite) === */
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x111111); // Màu nền chờ
-
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-// Đặt camera thấp (1.6m) để tạo cảm giác người đi bộ
-camera.position.set(0, 1.6, 0); 
-
-const renderer = new THREE.WebGLRenderer({ antialias:true });
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(window.devicePixelRatio); // Để ảnh nét trên điện thoại
-document.body.appendChild(renderer.domElement);
-
-/* === 2. TẢI ẢNH (PHƯƠNG PHÁP CỦA FILE THAM KHẢO) === */
-const loader = new THREE.CubeTextureLoader();
-
-// Thêm tham số ?v=... để chống việc trình duyệt dùng lại ảnh lỗi trong bộ nhớ đệm
-const v = "?v=" + Math.random();
-const urls = [
-    './px.png'+v, './nx.png'+v,
-    './py.png'+v, './ny.png'+v,
-    './pz.png'+v, './nz.png'+v
-];
-
-loader.load(urls, 
-    (texture) => {
-        // THÀNH CÔNG: Gán trực tiếp vào background (Cách này không bao giờ lỗi WebGL)
-        scene.background = texture;
-        console.log("✅ Ảnh đã lên background thành công!");
-        
-        // Tắt màn hình loading
-        const el = document.getElementById('loading');
-        el.style.opacity = '0';
-        setTimeout(() => el.style.display = 'none', 500);
-    },
-    undefined,
-    (err) => {
-        console.error("❌ Lỗi tải ảnh:", err);
-        document.querySelector('#loading h1').innerText = "LỖI KHÔNG TÌM THẤY FILE!";
-        document.querySelector('#loading p').innerText = "Hãy kiểm tra lại tên file px.png, nx.png... trong thư mục.";
-    }
-);
-
-/* === 3. SÀN NHÀ "GIẢ LẬP" (Mẹo Thị Giác) === */
-// Vì scene.background là vô tận, ta đặt một tấm sàn bán trong suốt ở dưới chân
-// để làm tối phần mặt đất, tạo cảm giác đó là đường nhựa chứ không phải vực thẳm.
-const groundGeo = new THREE.PlaneGeometry(500, 500);
-const groundMat = new THREE.MeshBasicMaterial({ 
-    color: 0x000000, 
-    transparent: true, 
-    opacity: 0.3 // Độ mờ: 0.3 giúp nhìn xuyên qua thấy mặt đất của ảnh Skybox bên dưới
-});
-const ground = new THREE.Mesh(groundGeo, groundMat);
-ground.rotation.x = -Math.PI / 2;
-ground.position.y = 0; // Ngay dưới chân
-scene.add(ground);
-
-/* === 4. ĐÈN & KHÔNG KHÍ === */
-// Thêm chút sương mù cực nhẹ để che đường biên giới hạn của tấm sàn giả
-scene.fog = new THREE.FogExp2(0x000000, 0.002); 
-scene.add(new THREE.AmbientLight(0xffffff, 1.2)); // Sáng sủa
-
-/* === 5. ĐIỀU KHIỂN (JOYSTICK MƯỢT MÀ) === */
-let move = { f:0, r:0 };
-let look = { lon:-90, lat:0 };
-let drag=false, sx, sy, slon, slat;
-
-const joy = nipplejs.create({ zone: document.getElementById('joystick-zone'), mode:'static', position:{ left:'60px', bottom:'60px' }, color: 'cyan' });
-joy.on('move',(e,d)=>{ move.f=d.vector.y; move.r=d.vector.x; });
-joy.on('end',()=> move={f:0,r:0});
-
-// Xoay Camera bằng cách vuốt màn hình
-document.addEventListener('pointerdown',e=>{ 
-    if(e.clientX > window.innerWidth/2) { // Chỉ vuốt bên phải màn hình để xoay
-        drag=true; sx=e.clientX; sy=e.clientY; slon=look.lon; slat=look.lat; 
-    }
-});
-document.addEventListener('pointermove',e=>{ 
-    if(drag) { 
-        look.lon=(sx-e.clientX)*0.2+slon; 
-        look.lat=(e.clientY-sy)*0.2+slat; 
-    }
-});
-document.addEventListener('pointerup',()=> drag=false);
-
-/* === 6. VÒNG LẶP RENDER === */
-const clock = new THREE.Clock();
-function animate(){
-    requestAnimationFrame(animate);
-    const dt = clock.getDelta();
-
-    // Giới hạn góc nhìn lên xuống
-    look.lat = Math.max(-85, Math.min(85, look.lat));
+    <div id="loading">
+        <h1>⚡ NEON CITY ⚡</h1>
+        <div class="status">Building grounded world...</div>
+    </div>
     
-    // Tính toán hướng nhìn
-    const phi = THREE.MathUtils.degToRad(90 - look.lat);
-    const theta = THREE.MathUtils.degToRad(look.lon);
-    const target = new THREE.Vector3().setFromSphericalCoords(1,phi,theta).add(camera.position);
-    camera.lookAt(target);
+    <div id="info">
+        <div class="title">🎮 CONTROLS</div>
+        <div><kbd>WASD</kbd> or <kbd>↑←↓→</kbd> Move</div>
+        <div><kbd>Mouse Drag</kbd> Look around</div>
+        <div style="margin-top: 10px; color: #ff006e; font-size: 12px;">📱 Mobile: Touch + Joystick</div>
+    </div>
 
-    // Di chuyển nhân vật
-    if(move.f||move.r){
-        const dir = new THREE.Vector3(); 
-        camera.getWorldDirection(dir); 
-        dir.y=0; dir.normalize();
-        const side = new THREE.Vector3().crossVectors(camera.up,dir);
+    <div id="debug"></div>
+    
+    <div id="joystick-zone"></div>
+
+    <script type="importmap">
+        { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.10.1/nipplejs.min.js"></script>
+
+    <script type="module">
+        import * as THREE from 'three';
+
+        // === GROUNDED HEMISPHERE CLASS ===
+        // Thuật toán: Bóp nửa dưới hình cầu lên thành mặt phẳng
+        class GroundedHemisphere extends THREE.Mesh {
+            constructor(texture, height, radius) {
+                // Tạo NỬA HÌNH CẦU (chỉ nửa trên: phi từ 0 đến PI/2)
+                const geometry = new THREE.SphereGeometry(
+                    radius,      // Bán kính
+                    128,         // widthSegments (độ chi tiết ngang)
+                    64,          // heightSegments (độ chi tiết dọc)
+                    0,           // phiStart
+                    Math.PI * 2, // phiLength (quanh tròn 360°)
+                    0,           // thetaStart
+                    Math.PI / 2  // thetaLength (CHỈ NỬA TRÊN)
+                );
+
+                const positions = geometry.attributes.position;
+                
+                // BÓP MÉO: Đẩy đáy lên gần tâm
+                for (let i = 0; i < positions.count; i++) {
+                    const x = positions.getX(i);
+                    const y = positions.getY(i);
+                    const z = positions.getZ(i);
+
+                    if (y > 0.01) {  // Chỉ xử lý các điểm TRÊN tâm
+                        // Tính hệ số kéo giãn
+                        // y càng cao → factor càng nhỏ → kéo ít
+                        // y càng thấp (gần đáy) → factor càng lớn → kéo mạnh
+                        const factor = height / y;
+                        
+                        // Kéo x, z ra xa theo hệ số
+                        const newX = x * factor;
+                        const newZ = z * factor;
+                        
+                        // KHÓA Y Ở ĐỘ CAO CỐ ĐỊNH
+                        const newY = height;
+                        
+                        positions.setXYZ(i, newX, newY, newZ);
+                    } else {
+                        // Các điểm ở đáy (y ≈ 0) → giữ nguyên
+                        // Tạo vành tròn phẳng
+                        positions.setY(i, 0);
+                    }
+                }
+
+                // Cập nhật geometry
+                geometry.computeVertexNormals();
+                geometry.attributes.position.needsUpdate = true;
+
+                // Material với texture
+                const material = new THREE.MeshBasicMaterial({ 
+                    map: texture, 
+                    side: THREE.BackSide  // Nhìn từ trong ra
+                });
+
+                super(geometry, material);
+                
+                console.log(`✅ GroundedHemisphere created: height=${height}, radius=${radius}`);
+            }
+        }
+
+        // === SETUP ===
+        const scene = new THREE.Scene();
+
+        const camera = new THREE.PerspectiveCamera(
+            75, 
+            window.innerWidth / window.innerHeight, 
+            0.1, 
+            800
+        );
+        camera.position.set(0, 1.6, 5);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.shadowMap.enabled = true;
+        document.body.appendChild(renderer.domElement);
+
+        // === LOAD CUBEMAP ===
+        const cubeLoader = new THREE.CubeTextureLoader();
         
-        // Tốc độ di chuyển
-        const speed = 10; 
-        camera.position.addScaledVector(dir, move.f*speed*dt);
-        camera.position.addScaledVector(side,-move.r*speed*dt);
-    }
+        console.log("🔍 Loading cubemap...");
+        
+        cubeLoader.load(
+            ['px.png', 'nx.png', 'py.png', 'ny.png', 'pz.png', 'nz.png'],
+            (texture) => {
+                console.log("✅ Cubemap loaded!");
+                
+                // Tạo Grounded Hemisphere
+                const skybox = new GroundedHemisphere(
+                    texture, 
+                    20,   // height: Độ cao nơi "bóp phẳng" đáy
+                    120   // radius: Bán kính hình cầu ban đầu
+                );
+                skybox.position.y = 0;  // Đặt sát mặt đất
+                scene.add(skybox);
+                
+                console.log("✅ Grounded hemisphere added to scene");
+                
+                // Hide loading
+                setTimeout(() => {
+                    document.getElementById('loading').style.opacity = '0';
+                    setTimeout(() => {
+                        document.getElementById('loading').style.display = 'none';
+                    }, 1000);
+                }, 500);
+            },
+            undefined,
+            (error) => {
+                console.error("❌ Load failed:", error);
+                document.querySelector('#loading .status').textContent = "Load error!";
+            }
+        );
 
-    renderer.render(scene,camera);
-}
-animate();
+        // === LIGHTING ===
+        scene.add(new THREE.AmbientLight(0x8888aa, 1.5));
+        const hemiLight = new THREE.HemisphereLight(0x00f2ff, 0xff006e, 0.6);
+        scene.add(hemiLight);
 
-// Tự động chỉnh kích thước khi xoay màn hình
-window.addEventListener('resize',()=>{
-    camera.aspect=window.innerWidth/window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth,window.innerHeight);
-});
-</script>
+        // === GROUND PLANE (Visual reference) ===
+        const ground = new THREE.Mesh(
+            new THREE.CircleGeometry(100, 64),
+            new THREE.MeshBasicMaterial({
+                color: 0x0a0a1f,
+                transparent: true,
+                opacity: 0.2
+            })
+        );
+        ground.rotation.x = -Math.PI / 2;
+        ground.position.y = 0;
+        scene.add(ground);
+
+        // Grid helper
+        const gridHelper = new THREE.GridHelper(50, 50, 0x00f2ff, 0x003344);
+        gridHelper.position.y = 0.01;
+        gridHelper.material.opacity = 0.2;
+        gridHelper.material.transparent = true;
+        scene.add(gridHelper);
+
+        // === PUDDLES ===
+        const puddles = [
+            { x: 4, z: 3, r: 2.5 },
+            { x: -5, z: -4, r: 2 },
+            { x: 7, z: -6, r: 2.2 },
+            { x: -8, z: 5, r: 2.8 }
+        ];
+
+        puddles.forEach(p => {
+            const puddle = new THREE.Mesh(
+                new THREE.CircleGeometry(p.r, 32),
+                new THREE.MeshStandardMaterial({
+                    color: 0x001144,
+                    roughness: 0.02,
+                    metalness: 1,
+                    emissive: 0x001133,
+                    emissiveIntensity: 0.3
+                })
+            );
+            puddle.rotation.x = -Math.PI / 2;
+            puddle.position.set(p.x, 0.02, p.z);
+            scene.add(puddle);
+        });
+
+        // === NEON LAMPS ===
+        const lampPos = [
+            [-10, -10], [10, -10], [-10, 10], [10, 10],
+            [0, -12], [0, 12], [-12, 0], [12, 0]
+        ];
+        const lights = [];
+
+        lampPos.forEach((p, i) => {
+            const color = i % 2 === 0 ? 0xff006e : 0x00f2ff;
+            
+            const pole = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.12, 0.18, 6, 8),
+                new THREE.MeshStandardMaterial({ 
+                    color: 0x1a1a1a,
+                    metalness: 0.9,
+                    roughness: 0.1
+                })
+            );
+            pole.position.set(p[0], 3, p[1]);
+            scene.add(pole);
+            
+            const bulb = new THREE.Mesh(
+                new THREE.SphereGeometry(0.35, 16, 16),
+                new THREE.MeshBasicMaterial({ 
+                    color: color,
+                    emissive: color,
+                    emissiveIntensity: 1
+                })
+            );
+            bulb.position.set(p[0], 6, p[1]);
+            scene.add(bulb);
+
+            const glow = new THREE.Mesh(
+                new THREE.SphereGeometry(0.6, 16, 16),
+                new THREE.MeshBasicMaterial({
+                    color: color,
+                    transparent: true,
+                    opacity: 0.3,
+                    side: THREE.BackSide
+                })
+            );
+            glow.position.copy(bulb.position);
+            scene.add(glow);
+            
+            const light = new THREE.PointLight(color, 8, 25);
+            light.position.copy(bulb.position);
+            scene.add(light);
+            
+            lights.push({ light, glow });
+
+            const cone = new THREE.Mesh(
+                new THREE.ConeGeometry(2.5, 7, 8, 1, true),
+                new THREE.MeshBasicMaterial({
+                    color: color,
+                    transparent: true,
+                    opacity: 0.1,
+                    side: THREE.DoubleSide
+                })
+            );
+            cone.position.copy(bulb.position);
+            cone.rotation.x = Math.PI;
+            scene.add(cone);
+        });
+
+        // === RAIN ===
+        const rainCount = 4000;
+        const rainGeo = new THREE.BufferGeometry();
+        const rainPos = new Float32Array(rainCount * 3);
+        const rainVel = [];
+
+        for(let i = 0; i < rainCount; i++) {
+            rainPos[i*3] = (Math.random() - 0.5) * 100;
+            rainPos[i*3+1] = Math.random() * 60;
+            rainPos[i*3+2] = (Math.random() - 0.5) * 100;
+            rainVel.push(0.7 + Math.random() * 0.4);
+        }
+
+        rainGeo.setAttribute('position', new THREE.BufferAttribute(rainPos, 3));
+        const rainSystem = new THREE.Points(
+            rainGeo,
+            new THREE.PointsMaterial({
+                color: 0xaaaaff,
+                size: 0.18,
+                transparent: true,
+                opacity: 0.6
+            })
+        );
+        scene.add(rainSystem);
+
+        // === CONTROLS ===
+        let move = { f: 0, r: 0 };
+        let look = { lon: -90, lat: 0 };
+        let drag = false, sx, sy, slon, slat;
+
+        const joy = nipplejs.create({ 
+            zone: document.getElementById('joystick-zone'),
+            mode: 'static',
+            position: { left: '60px', bottom: '60px' },
+            color: 'cyan'
+        });
+        joy.on('move', (e, d) => { 
+            move.f = d.vector.y; 
+            move.r = d.vector.x; 
+        });
+        joy.on('end', () => { 
+            move.f = 0; 
+            move.r = 0; 
+        });
+
+        document.addEventListener('pointerdown', e => {
+            drag = true;
+            sx = e.clientX;
+            sy = e.clientY;
+            slon = look.lon;
+            slat = look.lat;
+        });
+        
+        document.addEventListener('pointermove', e => {
+            if(!drag) return;
+            look.lon = (sx - e.clientX) * 0.15 + slon;
+            look.lat = (e.clientY - sy) * 0.15 + slat;
+        });
+        
+        document.addEventListener('pointerup', () => drag = false);
+
+        const keys = {};
+        window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
+        window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+
+        function checkCol(pos) {
+            return Math.abs(pos.x) > 20 || Math.abs(pos.z) > 20;
+        }
+
+        // === ANIMATION ===
+        const clock = new THREE.Clock();
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            const dt = clock.getDelta();
+            const time = clock.getElapsedTime();
+
+            // Rain
+            const rPos = rainSystem.geometry.attributes.position.array;
+            for(let i = 1; i < rPos.length; i += 3) {
+                rPos[i] -= rainVel[Math.floor(i/3)];
+                if(rPos[i] < 0) rPos[i] = 60;
+            }
+            rainSystem.geometry.attributes.position.needsUpdate = true;
+
+            // Lights
+            lights.forEach((lightObj, i) => {
+                const pulse = 7 + Math.sin(time * 2 + i * 1.2) * 2;
+                lightObj.light.intensity = pulse;
+                lightObj.glow.scale.setScalar(1 + Math.sin(time * 3 + i) * 0.25);
+            });
+
+            // Camera look
+            look.lat = Math.max(-80, Math.min(80, look.lat));
+            const phi = THREE.MathUtils.degToRad(90 - look.lat);
+            const theta = THREE.MathUtils.degToRad(look.lon);
+            const target = new THREE.Vector3()
+                .setFromSphericalCoords(1, phi, theta)
+                .add(camera.position);
+            camera.lookAt(target);
+
+            // Movement
+            let forward = move.f;
+            let right = move.r;
+
+            if(keys['w'] || keys['arrowup']) forward += 1;
+            if(keys['s'] || keys['arrowdown']) forward -= 1;
+            if(keys['a'] || keys['arrowleft']) right -= 1;
+            if(keys['d'] || keys['arrowright']) right += 1;
+
+            if(forward || right) {
+                const dir = new THREE.Vector3();
+                camera.getWorldDirection(dir);
+                dir.y = 0;
+                dir.normalize();
+
+                const side = new THREE.Vector3()
+                    .crossVectors(camera.up, dir);
+
+                const nextPos = camera.position.clone()
+                    .addScaledVector(dir, forward * 6 * dt)
+                    .addScaledVector(side, -right * 6 * dt);
+
+                nextPos.y = 1.6;  // Lock height
+
+                if(!checkCol(nextPos)) {
+                    camera.position.copy(nextPos);
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
 </body>
 </html>
