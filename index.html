@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>🌃 Cyberpunk - Grounded Reality</title>
+    <title>🌃 Cyberpunk Street - Cubemap</title>
     <style>
         body { 
             margin: 0; 
@@ -37,9 +37,9 @@
         }
         #loading h1 {
             color: #00f2ff; 
-            font-size: 2em;
-            text-shadow: 0 0 20px #00f2ff;
-            margin-bottom: 15px;
+            font-size: 2.5em;
+            text-shadow: 0 0 30px #00f2ff;
+            margin-bottom: 20px;
             animation: pulse 1.5s infinite;
         }
         @keyframes pulse {
@@ -48,15 +48,15 @@
         }
         #loading .status {
             color: #ff006e;
-            font-size: 1.1em;
-            margin: 5px 0;
+            font-size: 1.2em;
+            margin: 10px 0;
         }
         .progress-bar {
-            width: 250px;
-            height: 4px;
+            width: 300px;
+            height: 6px;
             background: rgba(0, 242, 255, 0.2);
-            border-radius: 2px;
-            margin-top: 15px;
+            border-radius: 3px;
+            margin-top: 20px;
             overflow: hidden;
         }
         .progress-fill {
@@ -67,53 +67,60 @@
         }
         #error-msg { 
             color: #ff0055; 
-            margin-top: 15px; 
-            font-size: 0.9em; 
+            margin-top: 20px; 
+            font-size: 0.95em; 
             display: none;
             text-align: center;
             max-width: 80%;
+            line-height: 1.6;
         }
         #info {
             position: absolute;
             top: 20px;
             left: 20px;
             color: #00f2ff;
-            background: rgba(10, 10, 31, 0.85);
-            padding: 12px 15px;
+            background: rgba(10, 10, 31, 0.9);
+            padding: 15px;
             border-radius: 8px;
             border: 1px solid #00f2ff;
-            box-shadow: 0 0 20px rgba(0, 242, 255, 0.3);
-            font-size: 13px;
+            box-shadow: 0 0 20px rgba(0, 242, 255, 0.4);
+            font-size: 14px;
             z-index: 10;
             backdrop-filter: blur(10px);
         }
         #info kbd {
             background: #1a1a2e;
-            padding: 2px 6px;
+            padding: 3px 7px;
             border-radius: 3px;
             border: 1px solid #00f2ff;
-            margin: 0 2px;
-            font-size: 12px;
+            margin: 0 3px;
+            font-size: 13px;
+        }
+        #info .title {
+            color: #ff006e;
+            font-weight: bold;
+            margin-bottom: 10px;
+            font-size: 15px;
         }
     </style>
 </head>
 <body>
     <div id="loading">
-        <h1>⚡ LOADING NEON CITY ⚡</h1>
-        <div class="status">Initializing cubemap textures...</div>
+        <h1>⚡ NEON CITY ⚡</h1>
+        <div class="status">Loading cubemap textures...</div>
         <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
         <div id="error-msg">
             ❌ Không tìm thấy file .png!<br>
-            Kiểm tra: px.png, nx.png, py.png, ny.png, pz.png, nz.png<br>
-            Xem Console (F12) để biết chi tiết.
+            Đảm bảo 6 files: px.png, nx.png, py.png, ny.png, pz.png, nz.png<br>
+            nằm cùng thư mục với index.html
         </div>
     </div>
     
     <div id="info">
-        <div style="color: #ff006e; font-weight: bold; margin-bottom: 8px;">🎮 CONTROLS</div>
+        <div class="title">🎮 CONTROLS</div>
         <div><kbd>WASD</kbd> or <kbd>↑←↓→</kbd> Move</div>
         <div><kbd>Mouse Drag</kbd> Look around</div>
-        <div style="margin-top: 8px; color: #ff006e; font-size: 11px;">📱 Mobile: Touch + Joystick</div>
+        <div style="margin-top: 10px; color: #ff006e; font-size: 12px;">📱 Mobile: Touch + Joystick</div>
     </div>
     
     <div id="joystick-zone"></div>
@@ -125,12 +132,11 @@
 
     <script type="module">
         import * as THREE from 'three';
-        import { GroundedSkybox } from 'https://unpkg.com/three@0.160.0/examples/jsm/objects/GroundedSkybox.js';
 
         // === SETUP ===
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x0a0a1f);
-        scene.fog = new THREE.Fog(0x0a0a1f, 30, 120);
+        scene.fog = new THREE.Fog(0x0a0a1f, 40, 150);
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         camera.position.set(0, 1.6, 0);
@@ -141,115 +147,120 @@
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         document.body.appendChild(renderer.domElement);
 
-        // === LOAD CUBEMAP (6 FACES) ===
+        // === LOAD CUBEMAP (KHÔNG DÙNG GroundedSkybox) ===
         const loader = new THREE.CubeTextureLoader();
         
         let loadedCount = 0;
-        const totalFaces = 6;
         const statusEl = document.querySelector('.status');
         const progressEl = document.getElementById('progress');
 
-        console.log("🔍 Loading cubemap faces...");
+        console.log("🔍 Loading cubemap from local files...");
 
-        // ✅ BỎ "./" ĐI - CHỈ DÙNG TÊN FILE
-        const texture = loader.load(
-            [
-                'px.png', 'nx.png',  // Right, Left
-                'py.png', 'ny.png',  // Top, Bottom  
-                'pz.png', 'nz.png'   // Front, Back
-            ],
-            // onLoad
+        const cubeTexture = loader.load(
+            ['px.png', 'nx.png', 'py.png', 'ny.png', 'pz.png', 'nz.png'],
+            
+            // onLoad - Thành công
             () => {
-                console.log("✅ All 6 faces loaded successfully!");
-                statusEl.textContent = "Creating grounded skybox...";
+                console.log("✅ Cubemap loaded successfully!");
+                statusEl.textContent = "Building world...";
                 
-                try {
-                    // Create GroundedSkybox
-                    const skybox = new GroundedSkybox(texture, 15, 80);
-                    skybox.position.y = 0;
-                    scene.add(skybox);
-                    console.log("✅ Skybox added to scene");
-                    
-                    // Hide loading screen
+                // Set cubemap làm background
+                scene.background = cubeTexture;
+                
+                // Tạo skybox box để có thể nhìn thấy texture
+                const skyboxGeo = new THREE.BoxGeometry(400, 400, 400);
+                const skyboxMat = new THREE.MeshBasicMaterial({
+                    envMap: cubeTexture,
+                    side: THREE.BackSide
+                });
+                const skybox = new THREE.Mesh(skyboxGeo, skyboxMat);
+                scene.add(skybox);
+                
+                console.log("✅ Skybox created");
+                
+                // Hide loading
+                setTimeout(() => {
+                    document.getElementById('loading').style.opacity = '0';
                     setTimeout(() => {
-                        document.getElementById('loading').style.opacity = '0';
-                        setTimeout(() => {
-                            document.getElementById('loading').style.display = 'none';
-                        }, 1000);
-                    }, 500);
-                } catch (e) {
-                    console.error("❌ Skybox creation failed:", e);
-                    showError("Lỗi tạo skybox: " + e.message);
-                }
+                        document.getElementById('loading').style.display = 'none';
+                    }, 1000);
+                }, 500);
             },
+            
             // onProgress
             (xhr) => {
                 loadedCount++;
-                const percent = (loadedCount / totalFaces * 100).toFixed(0);
-                statusEl.textContent = `Loading: ${loadedCount}/6 faces (${percent}%)`;
+                const percent = Math.round((loadedCount / 6) * 100);
                 progressEl.style.width = percent + '%';
+                statusEl.textContent = `Loading: ${loadedCount}/6 faces (${percent}%)`;
                 console.log(`⏳ Loaded ${loadedCount}/6 faces`);
             },
+            
             // onError
             (error) => {
                 console.error("❌ Failed to load cubemap:", error);
-                const failedFile = error.target?.src || "unknown";
-                showError(`Không tải được: ${failedFile.split('/').pop()}`);
+                document.querySelector('#loading h1').textContent = "LOAD ERROR";
+                statusEl.style.display = 'none';
+                document.getElementById('error-msg').style.display = 'block';
             }
         );
 
-        function showError(msg) {
-            statusEl.style.display = 'none';
-            const errorEl = document.getElementById('error-msg');
-            errorEl.innerHTML = `❌ ${msg}<br>Kiểm tra Console (F12) để biết thêm.`;
-            errorEl.style.display = 'block';
-            document.querySelector('#loading h1').textContent = "LOAD ERROR";
-        }
-
-        // === GROUND (PHYSICAL FLOOR) ===
-        const ground = new THREE.Mesh(
-            new THREE.PlaneGeometry(120, 120),
-            new THREE.MeshStandardMaterial({ 
-                color: 0x0a0a1f,
-                transparent: true,
-                opacity: 0.3,
-                roughness: 0.2,
-                metalness: 0.7
-            })
-        );
+        // === GROUND - Sàn lớn tối màu ===
+        const groundGeo = new THREE.CircleGeometry(200, 64);
+        const groundMat = new THREE.MeshStandardMaterial({ 
+            color: 0x050510,
+            roughness: 0.8,
+            metalness: 0.2,
+            transparent: true,
+            opacity: 0.9
+        });
+        const ground = new THREE.Mesh(groundGeo, groundMat);
         ground.rotation.x = -Math.PI / 2;
+        ground.position.y = 0;
         ground.receiveShadow = true;
         scene.add(ground);
 
+        // Grid helper
+        const gridHelper = new THREE.GridHelper(50, 50, 0x00f2ff, 0x003344);
+        gridHelper.position.y = 0.01;
+        gridHelper.material.opacity = 0.15;
+        gridHelper.material.transparent = true;
+        scene.add(gridHelper);
+
         // === PUDDLES ===
         const puddles = [
-            { x: 3, z: 2, r: 2 },
-            { x: -4, z: -3, r: 1.5 },
-            { x: 5, z: -5, r: 1.8 },
-            { x: -6, z: 4, r: 2.2 }
+            { x: 4, z: 3, r: 2.5 },
+            { x: -5, z: -4, r: 2 },
+            { x: 7, z: -6, r: 2.2 },
+            { x: -8, z: 5, r: 2.8 }
         ];
 
         puddles.forEach(p => {
             const puddle = new THREE.Mesh(
                 new THREE.CircleGeometry(p.r, 32),
-                new THREE.MeshStandardMaterial({ 
-                    color: 0x001133,
-                    roughness: 0.0,
-                    metalness: 1.0,
-                    transparent: true,
-                    opacity: 0.6
+                new THREE.MeshStandardMaterial({
+                    color: 0x001144,
+                    roughness: 0.02,
+                    metalness: 1,
+                    emissive: 0x001122,
+                    emissiveIntensity: 0.3
                 })
             );
             puddle.rotation.x = -Math.PI / 2;
-            puddle.position.set(p.x, 0.01, p.z);
+            puddle.position.set(p.x, 0.02, p.z);
             puddle.receiveShadow = true;
             scene.add(puddle);
         });
 
-        // === LIGHTS ===
+        // === NEON STREET LAMPS ===
         scene.add(new THREE.AmbientLight(0x404040, 0.4));
+        const hemiLight = new THREE.HemisphereLight(0x00f2ff, 0xff006e, 0.3);
+        scene.add(hemiLight);
 
-        const lampPos = [[-8, -8], [8, -8], [-8, 8], [8, 8]];
+        const lampPos = [
+            [-10, -10], [10, -10], [-10, 10], [10, 10],
+            [0, -12], [0, 12], [-12, 0], [12, 0]
+        ];
         const lights = [];
 
         lampPos.forEach((p, i) => {
@@ -257,41 +268,32 @@
             
             // Pole
             const pole = new THREE.Mesh(
-                new THREE.CylinderGeometry(0.1, 0.15, 5, 8),
+                new THREE.CylinderGeometry(0.12, 0.18, 6, 8),
                 new THREE.MeshStandardMaterial({ 
-                    color: 0x222222,
-                    metalness: 0.8,
-                    roughness: 0.2
+                    color: 0x1a1a1a,
+                    metalness: 0.9,
+                    roughness: 0.1
                 })
             );
-            pole.position.set(p[0], 2.5, p[1]);
+            pole.position.set(p[0], 3, p[1]);
             pole.castShadow = true;
             scene.add(pole);
             
-            // Light
-            const light = new THREE.PointLight(color, 150, 20);
-            light.position.set(p[0], 5, p[1]);
-            light.castShadow = true;
-            light.shadow.mapSize.width = 512;
-            light.shadow.mapSize.height = 512;
-            scene.add(light);
-            lights.push(light);
-            
-            // Bulb
+            // Light bulb
             const bulb = new THREE.Mesh(
-                new THREE.SphereGeometry(0.3, 16, 16),
+                new THREE.SphereGeometry(0.35, 16, 16),
                 new THREE.MeshBasicMaterial({ 
                     color: color,
                     emissive: color,
                     emissiveIntensity: 1
                 })
             );
-            bulb.position.copy(light.position);
+            bulb.position.set(p[0], 6, p[1]);
             scene.add(bulb);
 
-            // Glow
+            // Glow halo
             const glow = new THREE.Mesh(
-                new THREE.SphereGeometry(0.5, 16, 16),
+                new THREE.SphereGeometry(0.6, 16, 16),
                 new THREE.MeshBasicMaterial({
                     color: color,
                     transparent: true,
@@ -301,29 +303,53 @@
             );
             glow.position.copy(bulb.position);
             scene.add(glow);
+            
+            // Point light
+            const light = new THREE.PointLight(color, 4, 18);
+            light.position.copy(bulb.position);
+            light.castShadow = true;
+            light.shadow.mapSize.width = 512;
+            light.shadow.mapSize.height = 512;
+            scene.add(light);
+            
+            lights.push({ light, glow, bulb, color });
+
+            // Light cone
+            const cone = new THREE.Mesh(
+                new THREE.ConeGeometry(2.5, 7, 8, 1, true),
+                new THREE.MeshBasicMaterial({
+                    color: color,
+                    transparent: true,
+                    opacity: 0.1,
+                    side: THREE.DoubleSide
+                })
+            );
+            cone.position.copy(bulb.position);
+            cone.rotation.x = Math.PI;
+            scene.add(cone);
         });
 
         // === RAIN ===
+        const rainCount = 4000;
         const rainGeo = new THREE.BufferGeometry();
-        const rainCount = 3000;
         const rainPos = new Float32Array(rainCount * 3);
         const rainVel = [];
 
         for(let i = 0; i < rainCount; i++) {
-            rainPos[i*3] = (Math.random() - 0.5) * 80;
-            rainPos[i*3+1] = Math.random() * 40;
-            rainPos[i*3+2] = (Math.random() - 0.5) * 80;
-            rainVel.push(0.6 + Math.random() * 0.3);
+            rainPos[i*3] = (Math.random() - 0.5) * 100;
+            rainPos[i*3+1] = Math.random() * 60;
+            rainPos[i*3+2] = (Math.random() - 0.5) * 100;
+            rainVel.push(0.7 + Math.random() * 0.4);
         }
 
         rainGeo.setAttribute('position', new THREE.BufferAttribute(rainPos, 3));
         const rainSystem = new THREE.Points(
             rainGeo,
             new THREE.PointsMaterial({
-                color: 0xaaaaaa,
-                size: 0.15,
+                color: 0xaaaaff,
+                size: 0.18,
                 transparent: true,
-                opacity: 0.5
+                opacity: 0.6
             })
         );
         scene.add(rainSystem);
@@ -377,9 +403,9 @@
         window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
         window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 
-        // Collision boundary
+        // Collision
         function checkCol(pos) {
-            return Math.abs(pos.x) > 18 || Math.abs(pos.z) > 18;
+            return Math.abs(pos.x) > 20 || Math.abs(pos.z) > 20;
         }
 
         // === ANIMATION ===
@@ -394,13 +420,15 @@
             const pos = rainSystem.geometry.attributes.position.array;
             for(let i = 1; i < pos.length; i += 3) {
                 pos[i] -= rainVel[Math.floor(i/3)];
-                if(pos[i] < 0) pos[i] = 40;
+                if(pos[i] < 0) pos[i] = 60;
             }
             rainSystem.geometry.attributes.position.needsUpdate = true;
 
-            // Lights flicker
-            lights.forEach((light, i) => {
-                light.intensity = 150 + Math.sin(time * 2 + i) * 30;
+            // Lights animation
+            lights.forEach((lightObj, i) => {
+                const pulse = 3.5 + Math.sin(time * 2 + i * 1.2) * 1;
+                lightObj.light.intensity = pulse;
+                lightObj.glow.scale.setScalar(1 + Math.sin(time * 3 + i) * 0.25);
             });
 
             // Camera look
@@ -432,8 +460,8 @@
                     .normalize();
 
                 const next = camera.position.clone()
-                    .addScaledVector(dir, forward * 5 * dt)
-                    .addScaledVector(side, -right * 5 * dt);
+                    .addScaledVector(dir, forward * 6 * dt)
+                    .addScaledVector(side, -right * 6 * dt);
 
                 if(!checkCol(next)) {
                     camera.position.copy(next);
