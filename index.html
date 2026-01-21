@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>🌃 Cyberpunk Street Walk</title>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background-color: #000; 
+            touch-action: none; 
+            font-family: 'Courier New', monospace;
+        }
+        #joystick-zone { 
+            position: absolute; 
+            bottom: 50px; 
+            left: 50px; 
+            width: 120px; 
+            height: 120px; 
+            z-index: 100; 
+            opacity: 0.8; 
+        }
+        #loading { 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            background: linear-gradient(135deg, #0a0a1f 0%, #1a0a2e 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 999; 
+            transition: opacity 1s;
+        }
+        #loading h1 {
+            color: #ff006e;
+            font-size: 2.5em;
+            text-shadow: 0 0 30px #ff006e, 0 0 60px #ff006e;
+            margin-bottom: 20px;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        #loading p {
+            color: #00f2ff;
+            font-size: 1.2em;
+            text-shadow: 0 0 10px #00f2ff;
+        }
+        .loading-bar {
+            width: 200px;
+            height: 4px;
+            background: rgba(0, 242, 255, 0.2);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 20px;
+        }
+        .loading-progress {
+            height: 100%;
+            background: linear-gradient(90deg, #00f2ff, #ff006e);
+            animation: loading 1.5s infinite;
+        }
+        @keyframes loading {
+            0% { width: 0%; }
+            100% { width: 100%; }
+        }
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #00f2ff;
+            background: rgba(10, 10, 31, 0.85);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #00f2ff;
+            box-shadow: 0 0 20px rgba(0, 242, 255, 0.3);
+            font-size: 14px;
+            z-index: 10;
+            backdrop-filter: blur(10px);
+        }
+        #info kbd {
+            background: #1a1a2e;
+            padding: 3px 8px;
+            border-radius: 3px;
+            border: 1px solid #00f2ff;
+            margin: 0 3px;
+            box-shadow: 0 0 5px rgba(0, 242, 255, 0.5);
+        }
+        #info .title {
+            color: #ff006e;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px #ff006e;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">
+        <h1>⚡ NEON CITY ⚡</h1>
+        <p>Initializing simulation...</p>
+        <div class="loading-bar">
+            <div class="loading-progress"></div>
+        </div>
+    </div>
+    <div id="info">
+        <div class="title">🎮 CONTROLS</div>
+        <div><kbd>WASD</kbd> or <kbd>↑←↓→</kbd> Move</div>
+        <div><kbd>Mouse</kbd> Look around</div>
+        <div style="margin-top: 10px; color: #ff006e;">📱 Mobile: Touch screen + Joystick</div>
+    </div>
+    <div id="joystick-zone"></div>
+
+    <script type="importmap">
+        { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.10.1/nipplejs.min.js"></script>
+
+    <script type="module">
+        import * as THREE from 'three';
+
+        // === SETUP ===
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0a0a1f);
+        scene.fog = new THREE.FogExp2(0x0a0a1f, 0.02);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 1.6, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+
+        // === SKYBOX 360° (LOCAL FILE) ===
+        const loader = new THREE.TextureLoader();
+        loader.load('neoncity0.webp', 
+            (texture) => {
+                const skybox = new THREE.Mesh(
+                    new THREE.SphereGeometry(200, 64, 32),
+                    new THREE.MeshBasicMaterial({ 
+                        map: texture, 
+                        side: THREE.BackSide 
+                    })
+                );
+                scene.add(skybox);
+                document.getElementById('loading').style.opacity = '0';
+                setTimeout(() => { 
+                    document.getElementById('loading').style.display = 'none'; 
+                }, 1000);
+            },
+            undefined,
+            (error) => {
+                console.warn('Failed to load neoncity0.webp, using fallback');
+                const skybox = new THREE.Mesh(
+                    new THREE.SphereGeometry(200, 64, 32),
+                    new THREE.MeshBasicMaterial({ 
+                        color: 0x1a0a2e, 
+                        side: THREE.BackSide 
+                    })
+                );
+                scene.add(skybox);
+                document.getElementById('loading').style.opacity = '0';
+                setTimeout(() => { 
+                    document.getElementById('loading').style.display = 'none'; 
+                }, 1000);
+            }
+        );
+
+        // === MẶT ĐƯỜNG WET ASPHALT (ĐÃ SỬA Math.PI) ===
+        const ground = new THREE.Mesh(
+            new THREE.PlaneGeometry(40, 40, 50, 50),
+            new THREE.MeshStandardMaterial({ 
+                color: 0x1a1a2e,
+                roughness: 0.2,
+                metalness: 0.9,
+                emissive: 0x001122,
+                emissiveIntensity: 0.1
+            })
+        );
+        ground.rotation.x = -Math.PI / 2; // ✅ SỬA LỖI Math.PIcenter
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        // VŨNG NƯỚC PHẢN CHIẾU
+        const puddles = [
+            { x: 3, z: 2, size: 2 },
+            { x: -4, z: -3, size: 1.5 },
+            { x: 5, z: -5, size: 1.8 },
+            { x: -6, z: 4, size: 2.2 }
+        ];
+
+        puddles.forEach(p => {
+            const puddle = new THREE.Mesh(
+                new THREE.CircleGeometry(p.size, 32),
+                new THREE.MeshStandardMaterial({
+                    color: 0x001133,
+                    roughness: 0.05,
+                    metalness: 1,
+                    emissive: 0x001133,
+                    emissiveIntensity: 0.2
+                })
+            );
+            puddle.rotation.x = -Math.PI / 2;
+            puddle.position.set(p.x, 0.02, p.z);
+            puddle.receiveShadow = true;
+            scene.add(puddle);
+        });
+
+        // Grid lines (đường kẻ)
+        const gridHelper = new THREE.GridHelper(40, 40, 0x00f2ff, 0x003344);
+        gridHelper.position.y = 0.01;
+        gridHelper.material.opacity = 0.15;
+        gridHelper.material.transparent = true;
+        scene.add(gridHelper);
+
+        // === INVISIBLE WALLS ===
+        const playableSize = 18;
+        const wallHeight = 5;
+        const wallMaterial = new THREE.MeshBasicMaterial({ 
+            transparent: true, 
+            opacity: 0,
+            side: THREE.DoubleSide
+        });
+
+        const walls = [
+            new THREE.Mesh(new THREE.BoxGeometry(0.5, wallHeight, playableSize), wallMaterial),
+            new THREE.Mesh(new THREE.BoxGeometry(0.5, wallHeight, playableSize), wallMaterial),
+            new THREE.Mesh(new THREE.BoxGeometry(playableSize, wallHeight, 0.5), wallMaterial),
+            new THREE.Mesh(new THREE.BoxGeometry(playableSize, wallHeight, 0.5), wallMaterial)
+        ];
+
+        walls[0].position.set(-playableSize/2, wallHeight/2, 0);
+        walls[1].position.set(playableSize/2, wallHeight/2, 0);
+        walls[2].position.set(0, wallHeight/2, -playableSize/2);
+        walls[3].position.set(0, wallHeight/2, playableSize/2);
+
+        walls.forEach(wall => {
+            wall.userData.isWall = true;
+            scene.add(wall);
+        });
+
+        // === ĐÈN ĐƯỜNG NEON + VOLUMETRIC LIGHT ===
+        const lights = [];
+        const lightPositions = [
+            [-8, 0, -8], [8, 0, -8], [-8, 0, 8], [8, 0, 8]
+        ];
+
+        lightPositions.forEach((pos, i) => {
+            // Trụ đèn
+            const pole = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.1, 0.15, 4, 8),
+                new THREE.MeshStandardMaterial({ 
+                    color: 0x222222,
+                    metalness: 0.8,
+                    roughness: 0.2
+                })
+            );
+            pole.position.set(pos[0], 2, pos[2]);
+            pole.castShadow = true;
+            scene.add(pole);
+
+            // Bóng đèn neon với GLOW
+            const lightColor = i % 2 === 0 ? 0xff006e : 0x00f2ff;
+            const lightBulb = new THREE.Mesh(
+                new THREE.SphereGeometry(0.3, 16, 16),
+                new THREE.MeshBasicMaterial({ 
+                    color: lightColor,
+                    emissive: lightColor,
+                    emissiveIntensity: 1
+                })
+            );
+            lightBulb.position.set(pos[0], 4, pos[2]);
+            scene.add(lightBulb);
+
+            // Glow halo
+            const glowMat = new THREE.MeshBasicMaterial({
+                color: lightColor,
+                transparent: true,
+                opacity: 0.3,
+                side: THREE.BackSide
+            });
+            const glow = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 16), glowMat);
+            glow.position.copy(lightBulb.position);
+            scene.add(glow);
+
+            // Point light
+            const light = new THREE.PointLight(lightColor, 3, 15);
+            light.position.set(pos[0], 4, pos[2]);
+            light.castShadow = true;
+            light.shadow.mapSize.width = 512;
+            light.shadow.mapSize.height = 512;
+            scene.add(light);
+            lights.push({ light, glow, color: lightColor });
+
+            // Volumetric cone (Light beam)
+            const coneGeo = new THREE.ConeGeometry(2, 5, 8, 1, true);
+            const coneMat = new THREE.MeshBasicMaterial({
+                color: lightColor,
+                transparent: true,
+                opacity: 0.08,
+                side: THREE.DoubleSide
+            });
+            const cone = new THREE.Mesh(coneGeo, coneMat);
+            cone.position.set(pos[0], 4, pos[2]);
+            cone.rotation.x = Math.PI;
+            scene.add(cone);
+        });
+
+        // Ambient + Hemisphere light
+        scene.add(new THREE.AmbientLight(0x404040, 0.3));
+        const hemiLight = new THREE.HemisphereLight(0x00f2ff, 0xff006e, 0.3);
+        scene.add(hemiLight);
+
+        // === MƯA RƠI ===
+        const rainCount = 3000;
+        const rainGeo = new THREE.BufferGeometry();
+        const rainPos = new Float32Array(rainCount * 3);
+        const rainVel = [];
+
+        for(let i = 0; i < rainCount; i++) {
+            rainPos[i*3] = (Math.random() - 0.5) * 100;
+            rainPos[i*3+1] = Math.random() * 60;
+            rainPos[i*3+2] = (Math.random() - 0.5) * 100;
+            rainVel.push(0.8 + Math.random() * 0.4);
+        }
+
+        rainGeo.setAttribute('position', new THREE.BufferAttribute(rainPos, 3));
+        const rainMat = new THREE.PointsMaterial({ 
+            color: 0xaaaaff, 
+            size: 0.2, 
+            transparent: true, 
+            opacity: 0.5 
+        });
+        const rainSystem = new THREE.Points(rainGeo, rainMat);
+        scene.add(rainSystem);
+
+        // === NEON SIGNS (Billboards) ===
+        const signs = [
+            { x: -9, y: 3, z: 6, text: '⚡', color: 0xff006e },
+            { x: 9, y: 3, z: -6, text: '💎', color: 0x00f2ff }
+        ];
+
+        signs.forEach(s => {
+            const sign = new THREE.Mesh(
+                new THREE.PlaneGeometry(1.5, 1.5),
+                new THREE.MeshBasicMaterial({
+                    color: s.color,
+                    emissive: s.color,
+                    emissiveIntensity: 1,
+                    transparent: true,
+                    opacity: 0.9
+                })
+            );
+            sign.position.set(s.x, s.y, s.z);
+            scene.add(sign);
+        });
+
+        // === CONTROLS ===
+        const moveState = { forward: 0, right: 0 };
+        const look = { lat: 0, lon: 0 };
+        let interact = false, startX, startY, startLon, startLat;
+
+        // Keyboard
+        const keys = {};
+        window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
+        window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+
+        // Mouse look
+        document.addEventListener('pointerdown', e => {
+            if(e.clientX > 200) {
+                interact = true;
+                startX = e.clientX;
+                startY = e.clientY;
+                startLon = look.lon;
+                startLat = look.lat;
+            }
+        });
+
+        document.addEventListener('pointermove', e => {
+            if(interact) {
+                look.lon = startLon + (startX - e.clientX) * 0.15;
+                look.lat = startLat + (e.clientY - startY) * 0.15;
+            }
+        });
+
+        document.addEventListener('pointerup', () => interact = false);
+
+        // Joystick mobile
+        const joy = nipplejs.create({ 
+            zone: document.getElementById('joystick-zone'),
+            mode: 'static',
+            position: { left: '60px', bottom: '60px' },
+            color: 'cyan'
+        });
+
+        joy.on('move', (e, data) => {
+            moveState.forward = data.vector.y;
+            moveState.right = data.vector.x;
+        });
+
+        joy.on('end', () => {
+            moveState.forward = 0;
+            moveState.right = 0;
+        });
+
+        // === COLLISION CHECK ===
+        function checkCollision(nextPos) {
+            const playerBox = new THREE.Box3().setFromCenterAndSize(
+                nextPos,
+                new THREE.Vector3(0.5, 2, 0.5)
+            );
+
+            for(let wall of walls) {
+                const wallBox = new THREE.Box3().setFromObject(wall);
+                if(playerBox.intersectsBox(wallBox)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // === ANIMATION LOOP ===
+        const clock = new THREE.Clock();
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            const dt = clock.getDelta();
+            const time = clock.getElapsedTime();
+
+            // Mưa rơi
+            const rPos = rainSystem.geometry.attributes.position.array;
+            for(let i = 0; i < rainCount; i++) {
+                rPos[i*3+1] -= rainVel[i];
+                if(rPos[i*3+1] < 0) {
+                    rPos[i*3+1] = 60;
+                }
+            }
+            rainSystem.geometry.attributes.position.needsUpdate = true;
+
+            // Đèn neon nhấp nháy + glow pulse
+            lights.forEach((lightObj, i) => {
+                const pulse = 2.5 + Math.sin(time * 2 + i * 1.5) * 0.8;
+                lightObj.light.intensity = pulse;
+                lightObj.glow.scale.setScalar(1 + Math.sin(time * 3 + i) * 0.2);
+            });
+
+            // Camera look
+            look.lat = Math.max(-85, Math.min(85, look.lat));
+            const phi = THREE.MathUtils.degToRad(90 - look.lat);
+            const theta = THREE.MathUtils.degToRad(look.lon);
+            const lookTarget = new THREE.Vector3()
+                .setFromSphericalCoords(1, phi, theta)
+                .add(camera.position);
+            camera.lookAt(lookTarget);
+
+            // Movement
+            const speed = 5 * dt;
+            let forward = 0, right = 0;
+
+            if(keys['w'] || keys['arrowup']) forward += 1;
+            if(keys['s'] || keys['arrowdown']) forward -= 1;
+            if(keys['a'] || keys['arrowleft']) right -= 1;
+            if(keys['d'] || keys['arrowright']) right += 1;
+
+            forward += moveState.forward;
+            right += moveState.right;
+
+            if(forward !== 0 || right !== 0) {
+                const direction = new THREE.Vector3();
+                camera.getWorldDirection(direction);
+                direction.y = 0;
+                direction.normalize();
+
+                const sideDir = new THREE.Vector3()
+                    .crossVectors(camera.up, direction)
+                    .normalize();
+
+                const nextPos = camera.position.clone()
+                    .addScaledVector(direction, forward * speed)
+                    .addScaledVector(sideDir, -right * speed);
+
+                if(!checkCollision(nextPos)) {
+                    camera.position.copy(nextPos);
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        animate();
+
+        // Resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
